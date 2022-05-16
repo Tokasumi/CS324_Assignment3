@@ -43,11 +43,9 @@ def train(config):
 
     print('Done training.')
 
-if __name__ == "__main__":
-
+def make_args():
     # Parse training configuration
     parser = argparse.ArgumentParser()
-
     # Model params
     parser.add_argument('--input_length', type=int, default=10, help='Length of an input sequence')
     parser.add_argument('--input_dim', type=int, default=1, help='Dimensionality of input sequence')
@@ -57,7 +55,9 @@ if __name__ == "__main__":
     parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate')
     parser.add_argument('--train_steps', type=int, default=10000, help='Number of training steps')
     parser.add_argument('--max_norm', type=float, default=10.0)
+    return parser.parse_args()
 
-    config = parser.parse_args()
-    # Train the model
+if __name__ == "__main__":
+
+    config = make_args()
     train(config)

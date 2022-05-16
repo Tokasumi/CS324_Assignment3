@@ -7,6 +7,7 @@ import torchvision.transforms as transforms
 from torchvision.utils import save_image
 from torchvision import datasets
 
+
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
@@ -103,7 +104,7 @@ def main():
     # torch.save(generator.state_dict(), "mnist_generator.pt")
 
 
-if __name__ == "__main__":
+def make_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_epochs', type=int, default=200,
                         help='number of epochs')
@@ -117,4 +118,7 @@ if __name__ == "__main__":
                         help='save every SAVE_INTERVAL iterations')
     args = parser.parse_args()
 
+
+if __name__ == "__main__":
+    make_args()
     main()

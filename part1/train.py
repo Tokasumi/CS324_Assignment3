@@ -1,14 +1,25 @@
 import argparse
+import itertools
 import time
 import numpy as np
 
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from dataset import PalindromeDataset, OneHotPalindromeDataset
 from lstm import RNN, LSTM
 
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+
+def _init_weights(module):
+    if isinstance(module, nn.Linear):
+        torch.nn.init.xavier_uniform_(module.weight)
+
+
+def init_weights(module):
+    module.apply(_init_weights)
 
 
 def forward_rnn(rnn: RNN, batch_inputs, bsize):
@@ -67,7 +78,7 @@ def fit(model, data_loader, max_steps=10000, eval_steps=10, batch_size=32, lr=0.
     return model
 
 
-def eval(model, data_loader, batch_size=1024):
+def eval(model, data_loader, batch_size=1000):
     model.eval()
 
     input_data, labels = next(iter(data_loader))
@@ -88,6 +99,45 @@ def eval(model, data_loader, batch_size=1024):
     return acc
 
 
+model_param = dict(input_dim=10, output_dim=10, hidden_dim=128)
+
+
+def grid(model_name='lstm', seq_length=10, repeat=8, batch_size=128):
+    lr_selection = [0.0001, 0.0005, 0.001, 0.0033, 0.0066, 0.01, 0.015, 0.02]
+    data_loader = DataLoader(OneHotPalindromeDataset(seq_length + 1), batch_size=batch_size, num_workers=1)
+    eval_loader = DataLoader(OneHotPalindromeDataset(seq_length + 1), batch_size=1000, num_workers=1)
+
+    results = np.zeros((len(lr_selection), repeat), dtype=np.float64)
+    for i, j in itertools.product(range(len(lr_selection)), range(repeat)):
+        model = RNN(**model_param) if model_name == 'rnn' else LSTM(**model_param)
+        model.to(DEVICE)
+        fit(model, data_loader, batch_size=batch_size, max_steps=1000, use_adam=True, lr=lr_selection[i])
+        acc = eval(model, eval_loader, batch_size=1000)
+        print('STATS:', model_name, lr_selection[i], j, '%.2f' % acc)
+        results[i, j] = acc
+
+    best_lr = lr_selection[np.argmax(np.log2(results).mean(axis=0))]
+    max_result = np.max(results)
+    return best_lr, max_result
+
+
+def ensemble():
+    rnn_params = []
+    rnn_best = []
+    lstm_params = []
+    lstm_best = []
+    for seq_len in [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]:
+        param, res = grid(model_name='rnn', seq_length=seq_len)
+        rnn_params.append(param)
+        rnn_best.append(res)
+        param, res = grid(model_name='lstm', seq_length=seq_len)
+        lstm_params.append(param)
+        lstm_best.append(res)
+
+    for lis in rnn_params, rnn_best, lstm_params, lstm_best:
+        print(lis)
+
+
 def train(config):
     seq_length = config.input_length
     batch_size = config.batch_size
@@ -95,15 +145,17 @@ def train(config):
     adam = config.adam
     learning_rate = config.learning_rate
     data_loader = DataLoader(OneHotPalindromeDataset(seq_length + 1), batch_size=batch_size, num_workers=1)
-    test_loader = DataLoader(OneHotPalindromeDataset(seq_length + 1), batch_size=1024, num_workers=1)
+    test_loader = DataLoader(OneHotPalindromeDataset(seq_length + 1), batch_size=1000, num_workers=1)
     model = RNN(input_dim=10, output_dim=10, hidden_dim=hidden_dim).to(DEVICE)
+    init_weights(model)
     print('=' * 30, 'RNN', '=' * 30)
     fit(model, data_loader, batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate, use_adam=adam)
-    print('Accuracy:', eval(model, data_loader=test_loader, batch_size=1024))
+    print('Accuracy:', eval(model, data_loader=test_loader, batch_size=1000))
     model = LSTM(input_dim=10, output_dim=10, hidden_dim=hidden_dim).to(DEVICE)
+    init_weights(model)
     print('=' * 30, 'LSTM', '=' * 30)
     fit(model, data_loader, batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate, use_adam=adam)
-    print('Precision:', eval(model, data_loader=test_loader, batch_size=1024))
+    print('Accuracy:', eval(model, data_loader=test_loader, batch_size=1000))
     print('Done training.')
 
 
@@ -125,5 +177,6 @@ def make_args():
 
 
 if __name__ == "__main__":
-    config = make_args()
-    train(config)
+    ensemble()
+    # config = make_args()
+    # train(config)

@@ -68,38 +68,18 @@ def fit(model, data_loader, max_steps=10000, eval_steps=10, batch_size=32, lr=0.
 
 
 def train(config):
-    # Initialize the model that we are going to use
-    model = None  # fixme
-
-    # Initialize the dataset and data loader (leave the +1)
-    dataset = PalindromeDataset(config.input_length + 1)
-    data_loader = DataLoader(dataset, config.batch_size, num_workers=1)
-
-    # Setup the loss and optimizer
-    criterion = None  # fixme
-    optimizer = None  # fixme
-
-    for step, (batch_inputs, batch_targets) in enumerate(data_loader):
-
-        # Add more code here ...
-
-        # the following line is to deal with exploding gradients
-        torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
-
-        # Add more code here ...
-
-        loss = np.inf  # fixme
-        accuracy = 0.0  # fixme
-
-        if step % 10 == 0:
-            pass
-            # print acuracy/loss here
-
-        if step == config.train_steps:
-            # If you receive a PyTorch data-loader error, check this bug report:
-            # https://github.com/pytorch/pytorch/pull/9655
-            break
-
+    seq_length = config.input_length
+    batch_size = config.batch_size
+    hidden_dim = config.num_hidden
+    adam = config.adam
+    learning_rate = config.learning_rate
+    data_loader = DataLoader(OneHotPalindromeDataset(seq_length + 1), batch_size=batch_size, num_workers=1)
+    model = RNN(input_dim=10, output_dim=10, hidden_dim=hidden_dim).to(DEVICE)
+    print('=' * 30, 'RNN', '=' * 30)
+    fit(model, data_loader, batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate, use_adam=adam)
+    model = LSTM(input_dim=10, output_dim=10, hidden_dim=hidden_dim).to(DEVICE)
+    print('=' * 30, 'LSTM', '=' * 30)
+    fit(model, data_loader, batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate, use_adam=adam)
     print('Done training.')
 
 
@@ -107,27 +87,19 @@ def make_args():
     # Parse training configuration
     parser = argparse.ArgumentParser()
     # Model params
-    parser.add_argument('--input_length', type=int, default=10, help='Length of an input sequence')
-    parser.add_argument('--input_dim', type=int, default=1, help='Dimensionality of input sequence')
-    parser.add_argument('--num_classes', type=int, default=10, help='Dimensionality of o_gate sequence')
-    parser.add_argument('--num_hidden', type=int, default=128, help='Number of prev_hidden units in the model')
-    parser.add_argument('--batch_size', type=int, default=128, help='Number of examples to process in a batch')
-    parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate')
-    parser.add_argument('--train_steps', type=int, default=10000, help='Number of training steps')
-    parser.add_argument('--max_norm', type=float, default=10.0)
+    parser.add_argument('--input-length', type=int, default=10, help='Length of an input sequence')
+    # parser.add_argument('--input-dim', type=int, default=10, help='Dimensionality of input sequence')
+    # parser.add_argument('--num-classes', type=int, default=10, help='Dimensionality of o_gate sequence')
+    parser.add_argument('--num-hidden', type=int, default=128, help='Number of prev_hidden units in the model')
+    parser.add_argument('--batch-size', type=int, default=128, help='Number of examples to process in a batch')
+    parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate')
+    parser.add_argument('--train-steps', type=int, default=10000, help='Number of training steps')
+    # parser.add_argument('--max-norm', type=float, default=10.0)
+    parser.add_argument('--adam', action='store_true', help='Use Adam as optimizer instead of RMSProp')
+
     return parser.parse_args()
 
 
 if __name__ == "__main__":
-    dataset = OneHotPalindromeDataset(10 + 1)
-    batch_size = 64
-    hidden_size = 30
-    data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=1)
-    model = RNN(input_dim=10, output_dim=10, hidden_dim=hidden_size).to(DEVICE)
-    print('=' * 30, 'RNN', '=' * 30)
-    fit(model, data_loader, batch_size=batch_size, use_adam=False)
-    model = LSTM(input_dim=10, output_dim=10, hidden_dim=hidden_size).to(DEVICE)
-    print('=' * 30, 'LSTM', '=' * 30)
-    fit(model, data_loader, batch_size=batch_size, use_adam=False)
-    # config = make_args()
-    # train(config)
+    config = make_args()
+    train(config)

@@ -67,6 +67,27 @@ def fit(model, data_loader, max_steps=10000, eval_steps=10, batch_size=32, lr=0.
     return model
 
 
+def eval(model, data_loader, batch_size=1024):
+    model.eval()
+
+    input_data, labels = next(iter(data_loader))
+    input_data, labels = input_data.to(DEVICE, torch.float32), labels.to(DEVICE, torch.float32)
+    input_data = input_data.transpose(0, 1)
+
+    if isinstance(model, RNN):
+        output = forward_rnn(model, input_data, batch_size)
+    elif isinstance(model, LSTM):
+        output = forward_lstm(model, input_data, batch_size)
+    else:
+        raise TypeError
+
+    predicts = torch.argmax(output, dim=1)
+    labels = torch.argmax(labels, dim=1)
+    confusion = predicts == labels
+    acc = float(torch.sum(confusion).detach().to('cpu') / len(confusion))
+    return acc
+
+
 def train(config):
     seq_length = config.input_length
     batch_size = config.batch_size
@@ -74,12 +95,15 @@ def train(config):
     adam = config.adam
     learning_rate = config.learning_rate
     data_loader = DataLoader(OneHotPalindromeDataset(seq_length + 1), batch_size=batch_size, num_workers=1)
+    test_loader = DataLoader(OneHotPalindromeDataset(seq_length + 1), batch_size=1024, num_workers=1)
     model = RNN(input_dim=10, output_dim=10, hidden_dim=hidden_dim).to(DEVICE)
     print('=' * 30, 'RNN', '=' * 30)
     fit(model, data_loader, batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate, use_adam=adam)
+    print('Accuracy:', eval(model, data_loader=test_loader, batch_size=1024))
     model = LSTM(input_dim=10, output_dim=10, hidden_dim=hidden_dim).to(DEVICE)
     print('=' * 30, 'LSTM', '=' * 30)
     fit(model, data_loader, batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate, use_adam=adam)
+    print('Precision:', eval(model, data_loader=test_loader, batch_size=1024))
     print('Done training.')
 
 

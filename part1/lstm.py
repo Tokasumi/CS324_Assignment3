@@ -22,7 +22,7 @@ class RNN(nn.Module):
         self.hidden_to_out = nn.Linear(self.hidden_dim, self.output_dim, bias=True)
 
     def forward(self, current_input, prev_hidden):
-        concatenate = torch.cat((current_input, prev_hidden), 0)
+        concatenate = torch.cat((current_input, prev_hidden), 1)
         current_hidden = self.input_to_hidden(concatenate)
         current_output = self.hidden_to_out(current_hidden)
         current_output = current_output if self.training else F.softmax(current_output, -1)
@@ -56,9 +56,10 @@ class LSTM(nn.Module):
         )
 
         self.hidden_to_out = nn.Linear(self.hidden_dim, self.output_dim, bias=True)
+        self.tanh = nn.Tanh()
 
     def forward(self, current_input, prev_hidden, prev_cell):
-        concatenate = torch.cat((current_input, prev_hidden), 0)
+        concatenate = torch.cat((current_input, prev_hidden), 1)
 
         f = self.f_gate(concatenate)
         i = self.i_gate(concatenate)
@@ -66,7 +67,7 @@ class LSTM(nn.Module):
         o = self.o_gate(concatenate)
 
         current_cell = g * i + prev_cell * f
-        current_hidden = o * F.tanh(current_cell)
+        current_hidden = o * self.tanh(current_cell)
         current_output = self.hidden_to_out(current_hidden)
         current_output = current_output if self.training else F.softmax(current_output, -1)
 

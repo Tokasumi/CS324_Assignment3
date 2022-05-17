@@ -78,7 +78,7 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D):
 
 
 def main():
-    # Create output image directory
+    # Create o_gate image directory
     os.makedirs('images', exist_ok=True)
 
     # load data

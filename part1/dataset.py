@@ -48,8 +48,11 @@ class PalindromeDataset(data.Dataset):
         # Keep last digit as target label. Note: one-hot encoding for inputs is
         # more suitable for training, but this also works.
         full_palindrome = self.generate_palindrome()
+        label = np.zeros(10, dtype=np.float32)
+        label[int(full_palindrome[-1])] = 1.0
+
         # Split palindrome into inputs (N-1 digits) and target (1 digit)
-        return full_palindrome[0:-1], int(full_palindrome[-1])
+        return full_palindrome[0:-1], label
 
     def generate_palindrome(self):
         # Generates a single, random palindrome number of 'length' digits.

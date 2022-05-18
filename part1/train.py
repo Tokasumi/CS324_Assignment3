@@ -237,16 +237,18 @@ def make_args():
     parser.add_argument('--train-steps', type=int, default=1000, help='Number of training steps')
     # parser.add_argument('--max-norm', type=float, default=10.0)
     parser.add_argument('--adam', action='store_true', help='Use Adam as optimizer instead of RMSProp')
+    parser.add_argument('--transfer-learning', action='store_true', help='Play the transfer learning trick')
 
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     # train_task1()
+    opts = make_args()
     try:
-        transfer()
+        if opts.transfer_learning:
+            transfer()
+        else:
+            train(opts)
     except KeyboardInterrupt:
-        print('Training Ended.')
-    #
-    # config = make_args()
-    # train(config)
+        pass

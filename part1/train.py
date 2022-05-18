@@ -10,6 +10,11 @@ from torch.utils.data import DataLoader
 from dataset import PalindromeDataset, OneHotPalindromeDataset
 from lstm import RNN, LSTM
 
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = "Times New Roman"
+# plt.rcParams["figure.dpi"] = 300
+
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
@@ -48,6 +53,7 @@ def fit(model, data_loader, max_steps=10000, eval_steps=10, batch_size=32, lr=0.
         optimizer = torch.optim.RMSprop(model.parameters(), lr=lr)
 
     model.train()
+    loss_records = []
 
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
         batch_inputs = batch_inputs.to(DEVICE, torch.float32)
@@ -70,12 +76,13 @@ def fit(model, data_loader, max_steps=10000, eval_steps=10, batch_size=32, lr=0.
                   f'step:{step + 1}/{max_steps}',
                   'loss = %.6f' % loss.item(),
                   end='')
+            loss_records.append((step + 1, loss.item()))
 
         if step >= max_steps:
             break
 
     print('\nFit Complete!')
-    return model
+    return model, loss_records
 
 
 def eval(model, data_loader, batch_size=1000):
@@ -146,17 +153,31 @@ def train(config):
     learning_rate = config.learning_rate
     data_loader = DataLoader(OneHotPalindromeDataset(seq_length + 1), batch_size=batch_size, num_workers=1)
     test_loader = DataLoader(OneHotPalindromeDataset(seq_length + 1), batch_size=1000, num_workers=1)
+
     model = RNN(input_dim=10, output_dim=10, hidden_dim=hidden_dim).to(DEVICE)
     init_weights(model)
     print('=' * 30, 'RNN', '=' * 30)
-    fit(model, data_loader, batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate, use_adam=adam)
+    _, rnn_loss = fit(model, data_loader, batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate,
+                      use_adam=adam)
     print('Accuracy:', eval(model, data_loader=test_loader, batch_size=1000))
     model = LSTM(input_dim=10, output_dim=10, hidden_dim=hidden_dim).to(DEVICE)
     init_weights(model)
     print('=' * 30, 'LSTM', '=' * 30)
-    fit(model, data_loader, batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate, use_adam=adam)
+    _, lstm_loss = fit(model, data_loader, batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate,
+                       use_adam=adam)
     print('Accuracy:', eval(model, data_loader=test_loader, batch_size=1000))
     print('Done training.')
+
+    plt.figure()
+    plt.title(f'Sequence length: {seq_length}')
+    plt.plot(*np.transpose(rnn_loss), linewidth=2.0, label='simple RNN')
+    plt.plot(*np.transpose(lstm_loss), linewidth=2.0, label='simple LSTM')
+    # plt.margins(0.1, 0.1)
+    plt.grid()
+    plt.xlabel('training steps')
+    plt.ylabel('loss')
+    plt.legend()
+    plt.savefig(f'seqlen{seq_length}', dpi=300)
 
 
 def make_args():
@@ -169,7 +190,7 @@ def make_args():
     parser.add_argument('--num-hidden', type=int, default=128, help='Number of prev_hidden units in the model')
     parser.add_argument('--batch-size', type=int, default=128, help='Number of examples to process in a batch')
     parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate')
-    parser.add_argument('--train-steps', type=int, default=10000, help='Number of training steps')
+    parser.add_argument('--train-steps', type=int, default=1000, help='Number of training steps')
     # parser.add_argument('--max-norm', type=float, default=10.0)
     parser.add_argument('--adam', action='store_true', help='Use Adam as optimizer instead of RMSProp')
 
@@ -177,6 +198,6 @@ def make_args():
 
 
 if __name__ == "__main__":
-    ensemble()
-    # config = make_args()
-    # train(config)
+    # ensemble()
+    config = make_args()
+    train(config)

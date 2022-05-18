@@ -62,7 +62,7 @@ class PalindromeDataset(data.Dataset):
 if __name__ == '__main__':
     from torch.utils.data import DataLoader
 
-    dataset = OneHotPalindromeDataset(6 + 1)
+    dataset = PalindromeDataset(6 + 1)
     data_loader = DataLoader(dataset, batch_size=4, num_workers=1)
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
         print('=' * 50)

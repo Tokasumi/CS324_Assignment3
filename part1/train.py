@@ -76,10 +76,15 @@ def fit(model, data_loader, max_steps=10000, eval_steps=10, batch_size=32, lr=0.
         loss.backward()
         optimizer.step()
 
+        if step >= max_steps:
+            break
+
         if (step + 1) % eval_steps == 0:
             if loss.item() > 2 * last_loss:
                 model.load_state_dict(back)
-                logging.warning(f'\rROLLBACK, loss={loss.item()}')
+                # logging.warning(f'\rROLLBACK, loss={loss.item()}')
+                print('\r  ROLLBACK  ', end='')
+                max_steps += 1
                 continue
             print('\r%.2f%%' % ((step + 1) / max_steps * 100),
                   f'step:{step + 1}/{max_steps}',
@@ -89,9 +94,6 @@ def fit(model, data_loader, max_steps=10000, eval_steps=10, batch_size=32, lr=0.
             loss_records.append((step + 1, loss.item()))
             last_loss = loss.item()
             back = model.state_dict().copy()
-
-        if step >= max_steps:
-            break
 
     print('\nFit Complete!')
     return model, loss_records
@@ -145,6 +147,41 @@ def train_task1():
     plt.savefig(f'lstm_test', dpi=300)
 
 
+def transfer():
+    max_steps = 1500
+
+    lstm = LSTM(input_dim=1, output_dim=10, hidden_dim=128).to(DEVICE)
+    init_weights(lstm)
+    rnn = RNN(input_dim=1, output_dim=10, hidden_dim=128).to(DEVICE)
+    init_weights(rnn)
+    base_lr = 0.001
+
+    for i in itertools.count(1):
+        seq_len = i * 15
+        base_lr = base_lr * 0.7
+        print('=' * 50, seq_len, '=' * 50)
+
+        data_loader = DataLoader(PalindromeDataset(seq_len + 1), batch_size=512, num_workers=1)
+        test_loader = DataLoader(PalindromeDataset(seq_len + 1), batch_size=1024, num_workers=1)
+        _, lstm_loss = fit(lstm, data_loader, batch_size=512, max_steps=max_steps, lr=base_lr * 0.9, use_adam=True)
+        lstm_acc = eval(lstm, test_loader, 1024)
+        _, rnn_loss = fit(lstm, data_loader, batch_size=512, max_steps=max_steps, lr=base_lr, use_adam=True)
+        rnn_acc = eval(lstm, test_loader, 1024)
+
+        plt.figure()
+        plt.title(f'Sequence length: {seq_len}')
+        plt.plot(*np.transpose(rnn_loss), linewidth=1.5,
+                 label='simple RNN, acc={:.2f}'.format(rnn_acc))
+        plt.plot(*np.transpose(lstm_loss), linewidth=1.5,
+                 label='simple LSTM, acc={:.2f}'.format(lstm_acc))
+        # plt.margins(0.1, 0.1)
+        plt.grid()
+        plt.xlabel('training steps')
+        plt.ylabel('loss')
+        plt.legend()
+        plt.savefig(f'seqlen_transfer{seq_len}', dpi=300)
+
+
 def train(config):
     seq_length = config.input_length
     batch_size = config.batch_size
@@ -157,7 +194,8 @@ def train(config):
     model = LSTM(input_dim=1, output_dim=10, hidden_dim=hidden_dim).to(DEVICE)
     init_weights(model)
     print('=' * 30, 'LSTM', '=' * 30)
-    fit(model, data_loader=DataLoader(PalindromeDataset(seq_length // 2 + 1), batch_size=batch_size, num_workers=1), batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate_lstm,use_adam=adam)
+    fit(model, data_loader=DataLoader(PalindromeDataset(seq_length // 2 + 1), batch_size=batch_size, num_workers=1),
+        batch_size=batch_size, max_steps=config.train_steps + 1000, lr=learning_rate_lstm, use_adam=adam)
     _, lstm_loss = fit(model, data_loader, batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate_lstm,
                        use_adam=adam)
     lstm_acc = eval(model, data_loader=test_loader, batch_size=1000)
@@ -165,6 +203,8 @@ def train(config):
     model = RNN(input_dim=1, output_dim=10, hidden_dim=hidden_dim).to(DEVICE)
     init_weights(model)
     print('=' * 30, 'RNN', '=' * 30)
+    fit(model, data_loader=DataLoader(PalindromeDataset(seq_length // 2 + 1), batch_size=batch_size, num_workers=1),
+        batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate_lstm, use_adam=adam)
     _, rnn_loss = fit(model, data_loader, batch_size=batch_size, max_steps=config.train_steps, lr=learning_rate,
                       use_adam=adam)
     rnn_acc = eval(model, data_loader=test_loader, batch_size=1000)
@@ -203,6 +243,10 @@ def make_args():
 
 if __name__ == "__main__":
     # train_task1()
-
-    config = make_args()
-    train(config)
+    try:
+        transfer()
+    except KeyboardInterrupt:
+        print('Training Ended.')
+    #
+    # config = make_args()
+    # train(config)

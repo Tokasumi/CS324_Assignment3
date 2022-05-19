@@ -1,5 +1,8 @@
 import argparse
 import os
+import random
+
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -61,44 +64,53 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, args):
         for i, (imgs, labels) in enumerate(dataloader):
             batch_size = imgs.shape[0]
 
-            # Train Discriminator
-            # -------------------
-            optimizer_D.zero_grad()
+            if d_loss is not None and g_loss is not None:
+                d_stat, g_stat = np.exp(d_loss.item()), np.exp(g_loss.item())
+                train_d = random.uniform(0.0, d_stat + g_stat) < d_stat
+                train_g = random.uniform(0.0, d_stat + g_stat) < g_stat
+            else:
+                train_d, train_g = True, True
 
-            x_real = imgs.reshape(batch_size, -1).to(DEVICE, torch.float32)
-            y_real = torch.autograd.Variable(torch.ones(batch_size, 1)).to(DEVICE, torch.float32)
+            if train_d:
+                # Train Discriminator
+                # -------------------
+                optimizer_D.zero_grad()
 
-            d_pred = discriminator(x_real)
-            d_loss = criterion(d_pred, y_real)
+                x_real = imgs.reshape(batch_size, -1).to(DEVICE, torch.float32)
+                y_real = torch.autograd.Variable(torch.ones(batch_size, 1)).to(DEVICE, torch.float32)
 
-            z = torch.autograd.Variable(torch.randn(batch_size, args.latent_dim)).to(DEVICE, torch.float32)
-            x_fake = generator(z)
-            y_fake = torch.autograd.Variable(torch.zeros(batch_size, 1)).to(DEVICE, torch.float32)
+                d_pred = discriminator(x_real)
+                d_loss = criterion(d_pred, y_real)
 
-            d_pred = discriminator(x_fake)
-            d_loss += criterion(d_pred, y_fake)
+                z = torch.autograd.Variable(torch.randn(batch_size, args.latent_dim)).to(DEVICE, torch.float32)
+                x_fake = generator(z)
+                y_fake = torch.autograd.Variable(torch.zeros(batch_size, 1)).to(DEVICE, torch.float32)
 
-            d_loss.backward()
-            optimizer_D.step()
+                d_pred = discriminator(x_fake)
+                d_loss += criterion(d_pred, y_fake)
 
-            # Train Generator
-            # ---------------
-            optimizer_G.zero_grad()
+                d_loss.backward()
+                optimizer_D.step()
 
-            z = torch.autograd.Variable(torch.randn(batch_size, args.latent_dim)).to(DEVICE, torch.float32)
-            y = torch.autograd.Variable(torch.ones(batch_size, 1)).to(DEVICE, torch.float32)
+            if train_g:
+                # Train Generator
+                # ---------------
+                optimizer_G.zero_grad()
 
-            g_pred = generator(z)
-            d_pred = discriminator(g_pred)
-            g_loss = criterion(d_pred, y)
+                z = torch.autograd.Variable(torch.randn(batch_size, args.latent_dim)).to(DEVICE, torch.float32)
+                y = torch.autograd.Variable(torch.ones(batch_size, 1)).to(DEVICE, torch.float32)
 
-            g_loss.backward()
-            optimizer_G.step()
+                g_pred = generator(z)
+                d_pred = discriminator(g_pred)
+                g_loss = criterion(d_pred, y)
+
+                g_loss.backward()
+                optimizer_G.step()
 
             # Save Images
             # -----------
             batches_done = epoch * len(dataloader) + i
-            if batches_done % args.save_interval == 0:
+            if batches_done % args.save_interval == 0 and d_loss is not None and g_loss is not None:
                 print(f'EPOCH: {epoch}', 'BATCHES_DONE:', batches_done,
                       'D_LOSS:', d_loss.item(), 'G_LOSS:', g_loss.item())
                 save_image(g_pred.reshape(batch_size, 1, 28, 28).detach().to('cpu'),

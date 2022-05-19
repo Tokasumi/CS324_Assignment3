@@ -7,6 +7,8 @@ import torchvision.transforms as transforms
 from torchvision.utils import save_image
 from torchvision import datasets
 
+from clean import clean
+
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print('CURRENT DEVICE: ', DEVICE)
 
@@ -159,5 +161,6 @@ def make_args():
 
 
 if __name__ == "__main__":
+    clean()
     options = make_args()
     main(options)

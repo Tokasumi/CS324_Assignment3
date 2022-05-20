@@ -1,7 +1,7 @@
 import argparse
 import os
 import random
-
+from dataclasses import dataclass
 import numpy as np
 
 import torch
@@ -67,7 +67,8 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, args):
             if d_loss is not None and g_loss is not None:
                 d_stat, g_stat = np.exp(d_loss.item()), np.exp(g_loss.item())
                 train_d = random.uniform(0.0, d_stat + g_stat) < d_stat
-                train_g = random.uniform(0.0, d_stat + g_stat) < g_stat
+                # train_g = random.uniform(0.0, d_stat + g_stat) < g_stat
+                train_g = True
             else:
                 train_d, train_g = True, True
 
@@ -79,15 +80,15 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, args):
                 x_real = imgs.reshape(batch_size, -1).to(DEVICE, torch.float32)
                 y_real = torch.autograd.Variable(torch.ones(batch_size, 1)).to(DEVICE, torch.float32)
 
-                d_pred = discriminator(x_real)
-                d_loss = criterion(d_pred, y_real)
-
                 z = torch.autograd.Variable(torch.randn(batch_size, args.latent_dim)).to(DEVICE, torch.float32)
                 x_fake = generator(z)
                 y_fake = torch.autograd.Variable(torch.zeros(batch_size, 1)).to(DEVICE, torch.float32)
 
-                d_pred = discriminator(x_fake)
-                d_loss += criterion(d_pred, y_fake)
+                x = torch.cat((x_real, x_fake), 0)
+                y = torch.cat((y_real, y_fake), 0)
+
+                d_pred = discriminator(x)
+                d_loss = criterion(d_pred, y)
 
                 d_loss.backward()
                 optimizer_D.step()
@@ -113,16 +114,13 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, args):
             if batches_done % args.save_interval == 0 and d_loss is not None and g_loss is not None:
                 print(f'EPOCH: {epoch}', 'BATCHES_DONE:', batches_done,
                       'D_LOSS:', d_loss.item(), 'G_LOSS:', g_loss.item())
-                save_image(g_pred.reshape(batch_size, 1, 28, 28).detach().to('cpu'),
-                           'images/epoch{}batches{}.png'.format(epoch, batches_done),
-                           nrow=20,
+                if g_pred.shape[0] < 25:
+                    print('WARNING: Shape mismatch when saving image.')
+                    continue
+                save_image(g_pred[:25, :].reshape(25, 1, 28, 28).detach().to('cpu'),
+                           'images/batches{}.png'.format(epoch, batches_done),
+                           nrow=5,
                            normalize=True)
-                # You can use the function save_image(Tensor (shape Bx1x28x28),
-                # filename, number of rows, normalize) to save the generated
-                # images, e.g.:
-                # save_image(gen_imgs[:25],
-                #            'images/{}.png'.format(batches_done),
-                #            nrow=5, normalize=True)
                 pass
 
 
@@ -153,6 +151,16 @@ def main(args):
     # You can save your generator here to re-use it to generate images for your
     # report, e.g.:
     torch.save(generator.state_dict(), 'mnist_generator.pth')
+
+
+@dataclass
+class DefaultArgs:
+    n_epoches: int = 200,
+    batch_size: int = 64,
+    lr: float = 0.0002,
+    latent_dim: int = 100,
+    save_interval: int = 500,
+    adam: bool = False
 
 
 def make_args():

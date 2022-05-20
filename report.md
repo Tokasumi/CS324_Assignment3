@@ -68,3 +68,20 @@ Both RNN and LSTM Performs perfectly (*Accuracy = 100%*) all the way to 150 long
 
 #### Task 2.1 GAN Model
 
+To make the model training easier, the generator and discriminator are fully-connected.
+
+```python
+# G: latent -> 256 -> 512 -> 1024 -> 1 * 28 * 28
+# D: 1 * 28 * 28 -> 1024 -> 512 -> 256 -> 1
+```
+
+Output of two models are processed by *sigmoid* and *BCELoss*.
+
+Note that since the discriminator can always learn faster than the generator, in every step, the discriminator will be trained (perform back-propagation) according to the probability
+$$
+p_{\mathrm{trainD}}=\frac{e^{L(D)}}{e^{L(D)}+e^{L(G)}}
+$$
+and the generator will be trained in every step.
+
+#### Task 2.2 GAN Model Results
+

@@ -60,7 +60,6 @@ class Discriminator(nn.Module):
 _CHECKPOINTS = {
     0: 'start',
     4000: 'mid',
-    172000: 'last',
 }
 
 
@@ -128,7 +127,6 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, args):
                            'images/batches{}.png'.format(batches_done),
                            nrow=5,
                            normalize=True)
-                pass
 
                 if batches_done in _CHECKPOINTS:
                     torch.save(generator.state_dict(), f'mnist_generator_{_CHECKPOINTS[batches_done]}.pth')
@@ -160,16 +158,6 @@ def main(args):
     # You can save your generator here to re-use it to generate images for your
     # report, e.g.:
     torch.save(generator.state_dict(), 'mnist_generator_final.pth')
-
-
-@dataclass
-class DefaultArgs:
-    n_epoches: int = 200,
-    batch_size: int = 64,
-    lr: float = 0.0002,
-    latent_dim: int = 100,
-    save_interval: int = 500,
-    adam: bool = False
 
 
 def make_args():

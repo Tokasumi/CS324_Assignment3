@@ -60,7 +60,7 @@ class Discriminator(nn.Module):
 _CHECKPOINTS = {
     0: 'start',
     4000: 'mid',
-    120000: 'last',
+    172000: 'last',
 }
 
 
@@ -143,7 +143,6 @@ def main(args):
         datasets.MNIST('./data/mnist', train=True, download=True,
                        transform=transforms.Compose([
                            transforms.ToTensor(),
-                           # transforms.Normalize((0.1307,), (0.3081,))
                        ])),
         batch_size=args.batch_size, shuffle=True)
 

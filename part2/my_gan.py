@@ -57,6 +57,13 @@ class Discriminator(nn.Module):
         return self.backbone(img)
 
 
+_CHECKPOINTS = {
+    0: 'start',
+    4000: 'mid',
+    120000: 'last',
+}
+
+
 def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, args):
     criterion = nn.BCELoss()
     d_loss, g_loss = None, None
@@ -118,10 +125,13 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, args):
                     print('WARNING: Shape mismatch when saving image.')
                     continue
                 save_image(g_pred[:25, :].reshape(25, 1, 28, 28).detach().to('cpu'),
-                           'images/batches{}.png'.format(epoch, batches_done),
+                           'images/batches{}.png'.format(batches_done),
                            nrow=5,
                            normalize=True)
                 pass
+
+                if batches_done in _CHECKPOINTS:
+                    torch.save(generator.state_dict(), f'mnist_generator_{_CHECKPOINTS[batches_done]}.pth')
 
 
 def main(args):
@@ -150,7 +160,7 @@ def main(args):
 
     # You can save your generator here to re-use it to generate images for your
     # report, e.g.:
-    torch.save(generator.state_dict(), 'mnist_generator.pth')
+    torch.save(generator.state_dict(), 'mnist_generator_final.pth')
 
 
 @dataclass
@@ -173,7 +183,7 @@ def make_args():
                         help='learning rate')
     parser.add_argument('--latent-dim', type=int, default=100,
                         help='dimensionality of the latent space')
-    parser.add_argument('--save-interval', type=int, default=500,
+    parser.add_argument('--save-interval', type=int, default=2000,
                         help='save every SAVE_INTERVAL iterations')
     parser.add_argument('--adam', action='store_true',
                         help='Use Adam as optimizer, otherwise, use RMSProp.')
